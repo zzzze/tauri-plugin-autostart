@@ -10,7 +10,7 @@ use tauri::{
   Manager, Runtime, State,
 };
 
-use std::env::current_exe;
+use std::{env::current_exe, path::PathBuf};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -108,12 +108,17 @@ pub fn init<R: Runtime>(
       }
       builder.set_use_launch_agent(matches!(macos_launcher, MacosLauncher::LaunchAgent));
 
-      let current_exe = current_exe()?;
+      let mut current_exe = current_exe()?;
 
       #[cfg(windows)]
       builder.set_app_path(&current_exe.display().to_string());
       #[cfg(target_os = "macos")]
-      builder.set_app_path(&current_exe.canonicalize()?.display().to_string());
+      {
+        if current_exe.ends_with(format!("{0}.app/Contents/MacOS/{0}", &app.package_info().name)) {
+          current_exe.push(PathBuf::from("../../.."));
+        }
+        builder.set_app_path(&current_exe.canonicalize()?.display().to_string());
+      }
       #[cfg(target_os = "linux")]
       if let Some(appimage) = app
         .env()
